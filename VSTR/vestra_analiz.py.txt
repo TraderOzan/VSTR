@@ -1,0 +1,71 @@
+import streamlit as st
+import pandas as pd
+import plotly.graph_objects as go
+import numpy as np
+from sklearn.linear_model import LinearRegression
+from pycoingecko import CoinGeckoAPI # Yeni ve sağlam kütüphane
+import time
+
+st.set_page_config(page_title="Vestra (VSTR) Analiz", layout="wide")
+st.title("📊 Vestra (VSTR) Profesyonel Analiz")
+
+cg = CoinGeckoAPI()
+
+@st.cache_data(ttl=600)
+def get_data():
+    try:
+        # Vestra'nın geçmiş verilerini çekiyoruz
+        raw_data = cg.get_coin_market_chart_by_id(id='vestra', vs_currency='usd', days='90')
+        
+        # Fiyatları DataFrame'e dönüştür
+        df = pd.DataFrame(raw_data['prices'], columns=['time', 'Close'])
+        df['time'] = pd.to_datetime(df['time'], unit='ms')
+        df.set_index('time', inplace=True)
+        return df
+    except Exception as e:
+        st.error(f"⚠️ Veri Kaynağı Hatası: {e}")
+        return pd.DataFrame()
+
+data = get_data()
+
+if not data.empty:
+    # --- İSTATİSTİKSEL HESAPLAMALAR ---
+    ma_window = st.sidebar.slider("MA Penceresi", 5, 30, 10)
+    data['MA'] = data['Close'].rolling(window=ma_window).mean()
+    data['Volatility'] = data['Close'].rolling(window=ma_window).std()
+    data['Z_Score'] = (data['Close'] - data['MA']) / data['Volatility']
+
+    # --- GRAFİK 1: ANOMALİ ---
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=data.index, y=data['Close'], name="Fiyat", line=dict(color='#00ffcc')))
+    fig.add_trace(go.Scatter(x=data.index, y=data['MA'], name="Trend", line=dict(color='white', dash='dot')))
+    
+    anomaliler = data[data['Z_Score'].abs() > 2].dropna()
+    fig.add_trace(go.Scatter(x=anomaliler.index, y=anomaliler['Close'], mode='markers', name='Anomali', marker=dict(color='red', size=10)))
+    
+    fig.update_layout(template="plotly_dark", title="VSTR Fiyat ve Sapma Analizi")
+    st.plotly_chart(fig, width='stretch')
+
+    # --- GRAFİK 2: REGRESYON TAHMİNİ ---
+    st.divider()
+    st.subheader("🔮 Matematiksel Trend Projeksiyonu")
+    
+    clean_df = data[['Close']].dropna()
+    X = np.arange(len(clean_df)).reshape(-1, 1)
+    y = clean_df['Close'].values.reshape(-1, 1)
+    
+    model = LinearRegression().fit(X, y)
+    future_X = np.arange(len(clean_df), len(clean_df) + 7).reshape(-1, 1)
+    future_preds = model.predict(future_X)
+    future_dates = pd.date_range(clean_df.index[-1] + pd.Timedelta(days=1), periods=7)
+    
+    fig_pred = go.Figure()
+    fig_pred.add_trace(go.Scatter(x=clean_df.index, y=clean_df['Close'], name="Geçmiş", line=dict(color='gray')))
+    fig_pred.add_trace(go.Scatter(x=future_dates, y=future_preds.flatten(), name="7 Günlük Tahmin", line=dict(color='magenta', width=3)))
+    
+    fig_pred.update_layout(template="plotly_dark")
+    st.plotly_chart(fig_pred, width='stretch')
+    
+    st.success(f"Analiz tamamlandı. Günlük Trend Eğimi: {model.coef_[0][0]:.8f}")
+else:
+    st.warning("⚠️ Veri şu an alınamıyor. Lütfen CoinGecko'nun yoğunluğunun geçmesi için 2 dakika bekleyip sayfayı yenileyin.")
