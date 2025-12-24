@@ -1,6 +1,7 @@
-yfinance
 streamlit
 pandas
 plotly
 numpy
 scikit-learn
+pycoingecko
+requests
