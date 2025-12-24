@@ -133,7 +133,7 @@ if not data.empty:
     
     # Başlık Alanı
     st.markdown("<h1 style='text-align: center;'>VESTRA ELITE TERMINAL</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; color: #00ffcc; opacity: 0.7;'>v2.0 Strategic Mobile Intelligence</p>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: #00ffcc; opacity: 0.7;'>Herşey VSTR Topluluğu için</p>", unsafe_allow_html=True)
     st.write("")
 
     # Üst Metrik Paneli
@@ -207,3 +207,4 @@ if not data.empty:
 
 else:
     st.error("Terminal initialization failed. Check API connectivity.")
+
